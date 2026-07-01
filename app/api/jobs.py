@@ -4,14 +4,20 @@ from uuid import UUID
 from app.core.database import get_db
 from app.models.job import Job
 from app.schemas.job import JobCreate, JobResponse
+from app.tasks.job_tasks import process_csv
 
 
 router = APIRouter()
+
+SUPPORTED_JOB_TYPES = {"csv"}
 
 
 @router.post("/jobs", response_model=JobResponse)
 def submit_job(job_data: JobCreate, db: Session = Depends(get_db)):
     """Accept a job request, save it to the DB as pending, and return the job record."""
+    if job_data.job_type not in SUPPORTED_JOB_TYPES:
+        raise HTTPException(status_code=400, detail=f"Unsupported job_type: {job_data.job_type!r}")
+
     job = Job(
         job_type=job_data.job_type,
         payload=job_data.payload,
@@ -20,6 +26,7 @@ def submit_job(job_data: JobCreate, db: Session = Depends(get_db)):
     db.add(job)
     db.commit()
     db.refresh(job)
+    process_csv.delay(str(job.id))
     return job
 
 
