@@ -5,11 +5,19 @@ from app.core.database import get_db
 from app.models.job import Job
 from app.schemas.job import JobCreate, JobResponse
 from app.tasks.job_tasks import process_csv
+from prometheus_client import Counter
 
 
 router = APIRouter()
 
 SUPPORTED_JOB_TYPES = {"csv"}
+
+# counts how many jobs have been submitted by type
+jobs_submitted = Counter(
+    "queueflow_jobs_submitted_total",
+    "Total number of jobs submitted",
+    ["job_type"]
+)
 
 
 @router.post("/jobs", response_model=JobResponse)
@@ -27,6 +35,7 @@ def submit_job(job_data: JobCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(job)
     process_csv.delay(str(job.id))
+    jobs_submitted.labels(job_type=job_data.job_type).inc()
     return job
 
 
