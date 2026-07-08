@@ -1,0 +1,50 @@
+# Celery worker Deployment. Same codebase/image family as the API, but runs
+# `worker/entrypoint.sh` (see Dockerfile.worker) instead of Uvicorn. No
+# Service is needed - workers pull jobs from Redis rather than receiving
+# inbound traffic.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker
+  namespace: queueflow
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: worker
+  template:
+    metadata:
+      labels:
+        app: worker
+    spec:
+      containers:
+        - name: worker
+          image: queueflow-worker:latest
+          imagePullPolicy: Never
+          envFrom:
+            - configMapRef:
+                name: queueflow-config
+            - secretRef:
+                name: queueflow-secret
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "256Mi"
+            limits:
+              cpu: "1"
+              memory: "512Mi"
+          # No HTTP port to probe, so we shell out to Celery's own ping
+          # command: it asks the worker process to respond over the broker,
+          # confirming it's actually consuming from the queue rather than
+          # just running as a process.
+          livenessProbe:
+            exec:
+              command:
+                - celery
+                - -A
+                - app.core.celery.celery_app
+                - inspect
+                - ping
+            initialDelaySeconds: 20
+            periodSeconds: 30
+            timeoutSeconds: 10

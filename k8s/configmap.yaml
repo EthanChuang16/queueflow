@@ -1,0 +1,14 @@
+# ConfigMap holds non-secret configuration shared by the API and worker
+# Deployments via `envFrom`. Anything here is fine to see in `kubectl get
+# configmap -o yaml` - passwords/keys belong in secret.yaml instead.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: queueflow-config
+  namespace: queueflow
+data:
+  REDIS_URL: "redis://redis-service:6379/0"
+  CELERY_CONCURRENCY: "4"
+  DEBUG: "false"
+  POSTGRES_DB: "queueflow"
+  POSTGRES_USER: "postgres"

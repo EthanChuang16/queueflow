@@ -1,0 +1,89 @@
+# PersistentVolumeClaim requests durable disk for Postgres data so a pod
+# restart (or reschedule to another node) doesn't wipe the database.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-pvc
+  namespace: queueflow
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+# Single-replica Postgres Deployment. Only one replica makes sense here since
+# Postgres isn't horizontally scalable without a replication setup - if this
+# pod dies, Kubernetes reschedules it and it re-attaches to the same PVC.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  namespace: queueflow
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:15-alpine
+          ports:
+            - containerPort: 5432
+          envFrom:
+            - configMapRef:
+                name: queueflow-config
+            - secretRef:
+                name: queueflow-secret
+          volumeMounts:
+            - mountPath: /var/lib/postgresql/data
+              name: postgres-storage
+          # Requests: what the scheduler reserves for this pod on a node.
+          # Limits: the hard ceiling the pod can't exceed before being
+          # throttled (CPU) or killed (memory, OOMKilled).
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          # readinessProbe: is Postgres ready to accept connections? If not,
+          # Kubernetes stops routing traffic to it via postgres-service
+          # without restarting the pod.
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "postgres"]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          # livenessProbe: is Postgres still alive? If this fails repeatedly,
+          # Kubernetes restarts the container.
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "postgres"]
+            initialDelaySeconds: 15
+            periodSeconds: 20
+      volumes:
+        - name: postgres-storage
+          persistentVolumeClaim:
+            claimName: postgres-pvc
+---
+# ClusterIP Service (the default type) gives other pods in the namespace a
+# stable DNS name, `postgres-service`, to reach Postgres regardless of which
+# node the pod is scheduled on.
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-service
+  namespace: queueflow
+spec:
+  selector:
+    app: postgres
+  ports:
+    - port: 5432
+      targetPort: 5432

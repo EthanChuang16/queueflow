@@ -1,0 +1,7 @@
+# Namespace isolates all QueueFlow resources (API, worker, Postgres, Redis)
+# from other apps in the cluster. Every other manifest in this directory
+# targets `namespace: queueflow` so they all land here.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: queueflow

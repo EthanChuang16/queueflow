@@ -1,0 +1,55 @@
+# Redis serves as the Celery broker (job queue) and result backend. It's
+# intentionally not backed by a PVC - if it restarts, in-flight queue state
+# is lost, which is acceptable for this demo (jobs would need to be
+# resubmitted rather than surviving a Redis crash).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: queueflow
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+        - name: redis
+          image: redis:7-alpine
+          ports:
+            - containerPort: 6379
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "250m"
+              memory: "256Mi"
+          readinessProbe:
+            exec:
+              command: ["redis-cli", "ping"]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command: ["redis-cli", "ping"]
+            initialDelaySeconds: 10
+            periodSeconds: 20
+---
+# ClusterIP Service giving the API and worker pods a stable DNS name,
+# redis-service, matching REDIS_URL in configmap.yaml.
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-service
+  namespace: queueflow
+spec:
+  selector:
+    app: redis
+  ports:
+    - port: 6379
+      targetPort: 6379
