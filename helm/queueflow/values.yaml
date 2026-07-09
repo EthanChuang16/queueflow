@@ -1,0 +1,94 @@
+# Namespace all QueueFlow resources are deployed into.
+namespace: queueflow
+
+# API settings
+api:
+  replicas: 2
+  image: queueflow-api
+  tag: latest
+  pullPolicy: Never
+  port: 8000
+  service:
+    type: NodePort
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "128Mi"
+    limits:
+      cpu: "500m"
+      memory: "256Mi"
+  livenessProbe:
+    initialDelaySeconds: 10
+    periodSeconds: 10
+  readinessProbe:
+    initialDelaySeconds: 5
+    periodSeconds: 5
+
+# Worker settings
+worker:
+  replicas: 2
+  image: queueflow-worker
+  tag: latest
+  pullPolicy: Never
+  resources:
+    requests:
+      cpu: "250m"
+      memory: "256Mi"
+    limits:
+      cpu: "1"
+      memory: "512Mi"
+  livenessProbe:
+    initialDelaySeconds: 20
+    periodSeconds: 30
+    timeoutSeconds: 10
+
+# Redis settings
+redis:
+  image: redis
+  tag: 7-alpine
+  port: 6379
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "128Mi"
+    limits:
+      cpu: "250m"
+      memory: "256Mi"
+  readinessProbe:
+    initialDelaySeconds: 5
+    periodSeconds: 10
+  livenessProbe:
+    initialDelaySeconds: 10
+    periodSeconds: 20
+
+# Postgres settings
+postgres:
+  image: postgres
+  tag: 15-alpine
+  port: 5432
+  database: queueflow
+  user: postgres
+  storage: 1Gi
+  resources:
+    requests:
+      cpu: "250m"
+      memory: "256Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+  readinessProbe:
+    initialDelaySeconds: 5
+    periodSeconds: 10
+  livenessProbe:
+    initialDelaySeconds: 15
+    periodSeconds: 20
+
+# Application config
+config:
+  celeryConcurrency: "4"
+  debug: "false"
+
+# Secrets — in production these would come from a secrets manager
+secrets:
+  postgresPassword: "password"
+  secretKey: "localsecretkey123"

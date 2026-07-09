@@ -2,7 +2,7 @@ import httpx
 import asyncio
 import time
 
-API_URL = "http://localhost:8000/api/v1/jobs"
+API_URL = "http://127.0.0.1:37911/api/v1/jobs"
 
 async def submit_job(client: httpx.AsyncClient, i: int):
     """Submit a single job and print the result."""

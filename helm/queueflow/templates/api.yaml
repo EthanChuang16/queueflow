@@ -1,0 +1,72 @@
+# FastAPI Deployment. Runs 2 replicas behind api-service so the API stays
+# available during a rolling update or single pod failure.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  namespace: {{ .Values.namespace }}
+spec:
+  replicas: {{ .Values.api.replicas }}
+  selector:
+    matchLabels:
+      app: api
+  template:
+    metadata:
+      labels:
+        app: api
+    spec:
+      containers:
+        - name: api
+          image: "{{ .Values.api.image }}:{{ .Values.api.tag }}"
+          # imagePullPolicy: Never assumes the image is already built into
+          # the local cluster's Docker daemon (e.g. minikube) rather than
+          # pulled from a registry. Switch to `Always` and point `image` at
+          # GHCR once the CI/CD pipeline is pushing images there.
+          imagePullPolicy: {{ .Values.api.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.api.port }}
+          envFrom:
+            - configMapRef:
+                name: queueflow-config
+            - secretRef:
+                name: queueflow-secret
+          resources:
+            requests:
+              cpu: {{ .Values.api.resources.requests.cpu | quote }}
+              memory: {{ .Values.api.resources.requests.memory | quote }}
+            limits:
+              cpu: {{ .Values.api.resources.limits.cpu | quote }}
+              memory: {{ .Values.api.resources.limits.memory | quote }}
+          # livenessProbe: restarts the pod if /health stops responding.
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.api.port }}
+            initialDelaySeconds: {{ .Values.api.livenessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.api.livenessProbe.periodSeconds }}
+          # readinessProbe: pulls the pod out of api-service's endpoints
+          # (no traffic routed) without restarting it if /health fails,
+          # e.g. while still connecting to Postgres/Redis on startup.
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.api.port }}
+            initialDelaySeconds: {{ .Values.api.readinessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.api.readinessProbe.periodSeconds }}
+---
+# NodePort Service exposes the API on each node's IP at a high port
+# (30000-32767 range, auto-assigned) so it's reachable from outside the
+# cluster without needing an Ingress controller - convenient for local dev,
+# but an Ingress is the better fit once this targets a real cluster.
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-service
+  namespace: {{ .Values.namespace }}
+spec:
+  selector:
+    app: api
+  ports:
+    - port: {{ .Values.api.port }}
+      targetPort: {{ .Values.api.port }}
+  type: {{ .Values.api.service.type }}
