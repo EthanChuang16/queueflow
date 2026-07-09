@@ -81,6 +81,11 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # Docker registry tags must be lowercase, but the repository owner
+      # (EthanChuang16) contains uppercase letters, so convert it here.
+      - name: Set lowercase repository owner
+        run: echo "REPO_OWNER_LC=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_ENV"
+
       - name: Build and push API image
         uses: docker/build-push-action@v5
         with:
@@ -88,8 +93,8 @@ jobs:
           file: Dockerfile.api
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner }}/queueflow-api:latest
-            ghcr.io/${{ github.repository_owner }}/queueflow-api:${{ github.sha }}
+            ghcr.io/${{ env.REPO_OWNER_LC }}/queueflow-api:latest
+            ghcr.io/${{ env.REPO_OWNER_LC }}/queueflow-api:${{ github.sha }}
 
       - name: Build and push worker image
         uses: docker/build-push-action@v5
@@ -98,5 +103,5 @@ jobs:
           file: Dockerfile.worker
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner }}/queueflow-worker:latest
-            ghcr.io/${{ github.repository_owner }}/queueflow-worker:${{ github.sha }}
+            ghcr.io/${{ env.REPO_OWNER_LC }}/queueflow-worker:latest
+            ghcr.io/${{ env.REPO_OWNER_LC }}/queueflow-worker:${{ github.sha }}
