@@ -1,0 +1,24 @@
+# Production environment
+api:
+  replicas: 2
+  image: ghcr.io/ethanchuang16/queueflow-api
+  # TODO: pin to a git SHA tag (e.g. the commit the CI pipeline built) once
+  # this is used for a real deployment, rather than floating `latest`.
+  tag: latest
+  pullPolicy: Always
+
+worker:
+  replicas: 2
+  image: ghcr.io/ethanchuang16/queueflow-worker
+  # TODO: pin to a git SHA tag (e.g. the commit the CI pipeline built) once
+  # this is used for a real deployment, rather than floating `latest`.
+  tag: latest
+  pullPolicy: Always
+
+config:
+  celeryConcurrency: "4"
+  debug: "false"
+
+secrets:
+  postgresPassword: "password"
+  secretKey: "prodsecretkey123"

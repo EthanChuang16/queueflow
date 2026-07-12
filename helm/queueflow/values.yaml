@@ -1,6 +1,3 @@
-# Namespace all QueueFlow resources are deployed into.
-namespace: queueflow
-
 # API settings
 api:
   replicas: 2
