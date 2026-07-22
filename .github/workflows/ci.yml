@@ -51,6 +51,12 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: Lint with flake8
+        run: flake8 app/ tests/ --max-line-length=100
+
+      - name: Check formatting with black
+        run: black --check app/ tests/
+
       - name: Run tests
         env:
           DATABASE_URL: postgresql://postgres:password@localhost:5432/queueflow_test

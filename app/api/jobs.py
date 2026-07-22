@@ -1,14 +1,14 @@
 from typing import Optional
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from prometheus_client import Counter
 from sqlalchemy.orm import Session
-from uuid import UUID
+
 from app.core.database import get_db
 from app.models.job import Job
 from app.schemas.job import JobCreate, JobResponse
 from app.tasks.job_tasks import process_csv
-from prometheus_client import Counter
-
 
 router = APIRouter()
 
@@ -17,9 +17,7 @@ SUPPORTED_JOB_STATUSES = {"pending", "processing", "completed", "failed"}
 
 # counts how many jobs have been submitted by type
 jobs_submitted = Counter(
-    "queueflow_jobs_submitted_total",
-    "Total number of jobs submitted",
-    ["job_type"]
+    "queueflow_jobs_submitted_total", "Total number of jobs submitted", ["job_type"]
 )
 
 
@@ -55,7 +53,7 @@ def get_job(job_id: UUID, db: Session = Depends(get_db)):
 def list_jobs(
     status: Optional[str] = None,
     limit: int = Query(50, ge=1, le=200),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     List jobs with optional status filter.
@@ -86,7 +84,7 @@ def requeue_job(job_id: UUID, db: Session = Depends(get_db)):
     if job.status != "failed":
         raise HTTPException(
             status_code=400,
-            detail=f"Job is not in failed state, current status: {job.status}"
+            detail=f"Job is not in failed state, current status: {job.status}",
         )
 
     job.status = "pending"
@@ -98,4 +96,3 @@ def requeue_job(job_id: UUID, db: Session = Depends(get_db)):
     process_csv.delay(str(job.id))
     jobs_submitted.labels(job_type=job.job_type).inc()
     return job
-

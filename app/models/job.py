@@ -1,8 +1,11 @@
-from sqlalchemy import Column, String, DateTime, JSON, Integer
-from sqlalchemy.dialects.postgresql import UUID
-from app.core.database import Base
-from datetime import datetime
 import uuid
+from datetime import datetime
+
+from sqlalchemy import JSON, Column, DateTime, Integer, String
+from sqlalchemy.dialects.postgresql import UUID
+
+from app.core.database import Base
+
 
 class Job(Base):
     __tablename__ = "jobs"

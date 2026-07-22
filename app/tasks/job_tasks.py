@@ -1,15 +1,23 @@
-from app.core.celery import celery_app
-from app.core.database import SessionLocal
-from app.models.job import Job
-from celery.signals import worker_init, worker_process_shutdown
-from prometheus_client import Counter, Histogram, CollectorRegistry, multiprocess, make_wsgi_app
-from wsgiref.simple_server import make_server
 import logging
 import os
 import shutil
 import threading
-import uuid
 import time
+import uuid
+from wsgiref.simple_server import make_server
+
+from celery.signals import worker_init, worker_process_shutdown
+from prometheus_client import (
+    CollectorRegistry,
+    Counter,
+    Histogram,
+    make_wsgi_app,
+    multiprocess,
+)
+
+from app.core.celery import celery_app
+from app.core.database import SessionLocal
+from app.models.job import Job
 
 logger = logging.getLogger(__name__)
 
@@ -50,29 +58,32 @@ def _cleanup_metrics(pid, **kwargs):
     autoscaled pool doesn't accumulate stale/duplicate series over time."""
     multiprocess.mark_process_dead(pid)
 
+
 # counts jobs that completed successfully by job type
 jobs_completed = Counter(
     "queueflow_jobs_completed_total",
     "Total number of jobs completed successfully",
-    ["job_type"]
+    ["job_type"],
 )
 
 # counts jobs that failed permanently by job type
 jobs_failed = Counter(
     "queueflow_jobs_failed_total",
     "Total number of jobs that failed permanently",
-    ["job_type"]
+    ["job_type"],
 )
 
 # tracks how long each job takes to process
 job_duration = Histogram(
     "queueflow_job_processing_seconds",
     "Time spent processing jobs in seconds",
-    ["job_type"]
+    ["job_type"],
 )
 
 
-@celery_app.task(bind=True, max_retries=3, retry_backoff=5, retry_backoff_max=60, retry_jitter=False)
+@celery_app.task(
+    bind=True, max_retries=3, retry_backoff=5, retry_backoff_max=60, retry_jitter=False
+)
 def process_csv(self, job_id: str):
     """Simulates processing a CSV job and updates the job status in Postgres."""
     db = SessionLocal()

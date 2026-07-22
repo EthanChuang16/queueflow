@@ -3,8 +3,9 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
-from app.main import app
+
 from app.core.database import Base, get_db
+from app.main import app
 
 # in-memory sqlite database just for tests
 # never touches your real postgres data, and leaves nothing on disk
@@ -15,11 +16,8 @@ engine = create_engine(
     connect_args={"check_same_thread": False},
     poolclass=StaticPool,
 )
-TestingSessionLocal = sessionmaker(
-    autocommit=False,
-    autoflush=False,
-    bind=engine
-)
+TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
 
 def override_get_db():
     """Swap out the real postgres session for the test sqlite session."""
@@ -28,6 +26,7 @@ def override_get_db():
         yield db
     finally:
         db.close()
+
 
 @pytest.fixture(autouse=True)
 def setup_database():
@@ -39,6 +38,7 @@ def setup_database():
     Base.metadata.create_all(bind=engine)
     yield
     Base.metadata.drop_all(bind=engine)
+
 
 @pytest.fixture
 def client():
